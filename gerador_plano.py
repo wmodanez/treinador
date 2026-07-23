@@ -76,11 +76,12 @@ def gerar_plano(
     return plano
 
 
-def salvar_plano(plano: list[dict], nome_arquivo: str) -> Path:
+def salvar_plano(plano: list[dict], nome_arquivo: str, metadata: dict | None = None) -> Path:
     destino = Path("planos") / nome_arquivo
     destino.parent.mkdir(exist_ok=True)
+    doc = {"metadata": metadata or {}, "semanas": plano}
     with open(destino, "w", encoding="utf-8") as f:
-        json.dump(plano, f, ensure_ascii=False, indent=2)
+        json.dump(doc, f, ensure_ascii=False, indent=2)
     return destino
 
 

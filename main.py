@@ -2,14 +2,16 @@
 Ponto de entrada do treinador.
 
 Uso:
-    python main.py                       # parâmetros fixos definidos abaixo
-    python main.py --auto                # lê dados reais de dados/garmin_*.json
-    python main.py --auto --semanas 16   # idem com número de semanas diferente
+    python main.py                          # parâmetros fixos definidos abaixo
+    python main.py --auto                   # lê dados reais de dados/garmin_*.json
+    python main.py --auto --semanas 16      # idem com número de semanas diferente
     python main.py --auto --arquivo dados/garmin_2026-06-01_2026-07-23.json
+    python main.py --prova-nome "5k do Parque" --distancia 5 --semanas 8
 """
 
 import argparse
 import json
+import re
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -17,13 +19,13 @@ from calculadora import pace_str_para_segundos, segundos_para_pace_str
 from gerador_plano import gerar_plano, imprimir_resumo, salvar_plano
 
 # ---------------------------------------------------------------------------
-# Parâmetros fixos (usados quando --auto não é passado)
+# Parâmetros fixos (usados quando não sobrescritos por flags)
 # ---------------------------------------------------------------------------
 
 VOLUME_ATUAL_KM = 7.0
 PACE_BASE       = "8:10"
 SEMANAS         = 18
-PROVA_NOME      = "Maratona Monumental 2026"
+PROVA_NOME      = "Minha Prova"
 PROVA_DISTANCIA = 21.0
 
 
@@ -95,6 +97,10 @@ def _args() -> argparse.Namespace:
                    help=f"Semanas de preparação (padrão: {SEMANAS})")
     p.add_argument("--arquivo", metavar="caminho",
                    help="Arquivo garmin_*.json a usar com --auto")
+    p.add_argument("--prova-nome", default=PROVA_NOME, metavar="NOME",
+                   help=f"Nome da prova alvo (padrão: \"{PROVA_NOME}\")")
+    p.add_argument("--distancia", type=float, default=PROVA_DISTANCIA, metavar="KM",
+                   help=f"Distância da prova em km (padrão: {PROVA_DISTANCIA})")
     return p.parse_args()
 
 
@@ -114,20 +120,30 @@ def main() -> None:
             volume, pace = inferir_parametros(caminho)
             print(f"Dados lidos de: {caminho}")
 
+    prova_nome = args.prova_nome
+    distancia  = args.distancia
+
+    print(f"Prova:          {prova_nome} ({distancia} km)")
     print(f"Volume semanal: {volume} km/sem")
     print(f"Pace base:      {pace} min/km")
     print(f"Semanas:        {args.semanas}")
     print()
 
-    plano   = gerar_plano(
+    plano = gerar_plano(
         semanas=args.semanas,
         volume_inicial_km=volume,
         pace_base_str=pace,
-        prova_nome=PROVA_NOME,
-        prova_distancia_km=PROVA_DISTANCIA,
+        prova_nome=prova_nome,
+        prova_distancia_km=distancia,
     )
     imprimir_resumo(plano)
-    caminho_plano = salvar_plano(plano, "maratona_monumental_2026.json")
+
+    slug = re.sub(r"[^a-z0-9]+", "_", prova_nome.lower()).strip("_")
+    caminho_plano = salvar_plano(
+        plano,
+        f"{slug}.json",
+        metadata={"prova_nome": prova_nome, "prova_distancia_km": distancia, "semanas": args.semanas},
+    )
     print(f"\nPlano salvo em: {caminho_plano}")
 
 

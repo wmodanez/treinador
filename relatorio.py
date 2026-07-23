@@ -116,7 +116,20 @@ def _grafico_volume(plano: list) -> Image:
 
 def relatorio_plano(src: Path, dst: Path) -> None:
     with open(src, encoding="utf-8") as f:
-        plano = json.load(f)
+        raw = json.load(f)
+
+    if isinstance(raw, dict) and "semanas" in raw:
+        metadata = raw.get("metadata", {})
+        plano = raw["semanas"]
+    else:
+        metadata = {}
+        plano = raw
+
+    prova_nome = metadata.get("prova_nome", "")
+    distancia  = metadata.get("prova_distancia_km")
+    subtitulo  = prova_nome
+    if distancia:
+        subtitulo += f" — {distancia:.0f} km" if distancia == int(distancia) else f" — {distancia} km"
 
     doc = SimpleDocTemplate(str(dst), pagesize=A4,
                             leftMargin=2*cm, rightMargin=2*cm,
@@ -124,8 +137,7 @@ def relatorio_plano(src: Path, dst: Path) -> None:
     S = _estilos()
     story: list = []
 
-    _cabecalho(story, "Plano de Treino",
-               "Maratona Monumental de Brasília — 22/11/2026", AZUL, S)
+    _cabecalho(story, "Plano de Treino", subtitulo, AZUL, S)
 
     # sumário
     total_km = sum(s["volume_total_km"] for s in plano)
