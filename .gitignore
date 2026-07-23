@@ -1,0 +1,12 @@
+__pycache__
+
+.claude
+
+venv/
+
+# Keep planos/ directory in git but ignore all its contents
+planos/*
+!planos/.gitkeep
+
+dados/*
+!dados/.gitkeep
