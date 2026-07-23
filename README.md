@@ -130,10 +130,12 @@ Execuções repetidas **mesclam** os dados sem duplicar (deduplica por ID de ati
 ## Geração de plano
 
 ```bash
-python main.py                        # usa parâmetros fixos definidos no arquivo
-python main.py --auto                 # infere volume e pace dos dados em dados/
-python main.py --auto --semanas 16    # idem com número de semanas personalizado
+python main.py                                              # usa parâmetros fixos definidos no arquivo
+python main.py --auto                                       # infere volume e pace dos dados em dados/
+python main.py --auto --semanas 16                          # idem com número de semanas personalizado
 python main.py --auto --arquivo dados/garmin_2026-06-01_2026-07-23.json
+python main.py --prova-nome "Maratona de SP" --distancia 42.195 --semanas 18
+python main.py --auto --prova-nome "5k do Parque" --distancia 5 --semanas 8
 ```
 
 Com `--auto`, o script lê o arquivo `garmin_*.json` mais recente de `dados/` e calcula:
@@ -148,7 +150,7 @@ PACE_BASE       = "8:10" # pace atual em min/km
 SEMANAS         = 18     # semanas de preparação
 ```
 
-O plano é impresso no terminal e salvo em `planos/maratona_monumental_2026.json`.
+O plano é impresso no terminal e salvo em `planos/<slug-da-prova>.json` (ex.: `planos/maratona_de_sp.json`). O arquivo JSON inclui um bloco `metadata` com nome, distância e número de semanas da prova.
 
 ---
 
@@ -159,11 +161,11 @@ python relatorio.py plano    # relatório do plano de treino (lê planos/*.json 
 python relatorio.py treinos  # análise de corridas (lê dados/*.json mais recente)
 
 # Arquivo específico:
-python relatorio.py plano   planos/maratona_monumental_2026.json
+python relatorio.py plano   planos/maratona_de_sp.json
 python relatorio.py treinos dados/garmin_2026-06-01_2026-07-23.json
 ```
 
-Os PDFs são salvos em `planos/` com timestamp no nome. O relatório de treinos aceita tanto o formato do `baixar_treinos.py` (lista de corridas) quanto o do `baixar_tudo.py` (dict com corridas e dados diários).
+Os PDFs são salvos em `planos/` com timestamp no nome. O subtítulo do relatório de plano é preenchido automaticamente a partir da metadata do JSON (nome e distância da prova). O relatório de treinos aceita tanto o formato do `baixar_treinos.py` (lista de corridas) quanto o do `baixar_tudo.py` (dict com corridas e dados diários).
 
 ---
 
