@@ -2,24 +2,22 @@
 
 Ferramentas em Python para geração de planos de treino e análise de corridas via Garmin Connect, integrado ao Claude Code via MCP.
 
-**Meta atual:** 21 km — Maratona Monumental de Brasília, 22/11/2026.
-
 ---
 
 ## Estrutura do projeto
 
 ```
 treinador/
-├── auth.py                 # autenticação compartilhada com o Garmin Connect
-├── calculadora.py          # pace, tempo estimado, progressão de volume
-├── gerador_plano.py        # distribuição semanal de treinos por tipo
-├── main.py                 # geração do plano de treino
-├── baixar_treinos.py       # download de corridas do Garmin Connect
-├── baixar_tudo.py          # download completo: corridas + dados diários
-├── relatorio.py            # geração de relatórios PDF
-├── requirements.txt        # dependências Python
-├── dados/                  # JSONs baixados do Garmin
-└── planos/                 # planos gerados e relatórios PDF
+├── auth.py              # autenticação compartilhada com o Garmin Connect
+├── calculadora.py       # pace, tempo estimado, progressão de volume
+├── gerador_plano.py     # distribuição semanal de treinos, fases e progressão
+├── main.py              # CLI de geração do plano de treino
+├── baixar_treinos.py    # download de corridas do Garmin Connect
+├── baixar_tudo.py       # download completo: corridas + dados diários
+├── relatorio_html.py    # relatórios HTML/PDF — análise e plano
+├── requirements.txt     # dependências Python
+├── dados/               # JSONs baixados do Garmin
+└── planos/              # planos e relatórios gerados
 ```
 
 ---
@@ -38,6 +36,12 @@ treinador/
 python -m venv venv
 venv\Scripts\activate      # Windows
 pip install -r requirements.txt
+```
+
+### Instalar Chromium para geração de PDF (uma vez)
+
+```bash
+playwright install chromium
 ```
 
 ---
@@ -83,19 +87,17 @@ python baixar_treinos.py                                    # últimas 20 corrid
 python baixar_treinos.py --limite 50                        # últimas 50 corridas
 python baixar_treinos.py --dias 30                          # últimos 30 dias
 python baixar_treinos.py --inicio 2026-06-01                # de uma data até hoje
-python baixar_treinos.py --inicio 2026-06-01 --fim 2026-06-30  # período específico
-python baixar_treinos.py --saida junho.json                 # arquivo de saída personalizado
+python baixar_treinos.py --inicio 2026-06-01 --fim 2026-06-30
+python baixar_treinos.py --saida junho.json
 ```
 
 ### `baixar_tudo.py` — corridas + dados diários
 
-Baixa tudo de uma vez: corridas, sono, HRV, body battery, estresse, FC de repouso e prontidão para treino.
-
 ```bash
 python baixar_tudo.py                                       # últimos 30 dias
-python baixar_tudo.py --dias 60                             # últimos 60 dias
-python baixar_tudo.py --inicio 2026-06-01                   # de uma data até hoje
-python baixar_tudo.py --inicio 2026-06-01 --fim 2026-06-30  # período específico
+python baixar_tudo.py --dias 60
+python baixar_tudo.py --inicio 2026-06-01
+python baixar_tudo.py --inicio 2026-06-01 --fim 2026-06-30
 python baixar_tudo.py --forcar                              # re-baixa datas já salvas
 ```
 
@@ -130,15 +132,20 @@ Execuções repetidas **mesclam** os dados sem duplicar (deduplica por ID de ati
 ## Geração de plano
 
 ```bash
-python main.py                                              # usa parâmetros fixos definidos no arquivo
-python main.py --auto                                       # infere volume e pace dos dados em dados/
-python main.py --auto --semanas 16                          # idem com número de semanas personalizado
-python main.py --auto --arquivo dados/garmin_2026-06-01_2026-07-23.json
-python main.py --prova-nome "Maratona de SP" --distancia 42.195 --semanas 18
+# Parâmetros fixos definidos em main.py
+python main.py
+
+# Infere volume e pace dos dados do Garmin em dados/
+python main.py --auto
+
+# Personalizado
+python main.py --prova-nome "Maratona Monumental 2026" --distancia 21 --semanas 17 \
+               --data-inicio 2026-07-28 --data-prova 2026-11-22
+
 python main.py --auto --prova-nome "5k do Parque" --distancia 5 --semanas 8
 ```
 
-Com `--auto`, o script lê o arquivo `garmin_*.json` mais recente de `dados/` e calcula:
+Com `--auto`, o script lê o `garmin_*.json` mais recente de `dados/` e calcula:
 - **Volume semanal** — média de km/semana dos últimos 28 dias
 - **Pace base** — média ponderada por distância das últimas 8 corridas
 
@@ -148,24 +155,11 @@ Parâmetros fixos (editáveis em `main.py`):
 VOLUME_ATUAL_KM = 7.0    # km/semana atual
 PACE_BASE       = "8:10" # pace atual em min/km
 SEMANAS         = 18     # semanas de preparação
+PROVA_NOME      = "Minha Prova"
+PROVA_DISTANCIA = 21.0
 ```
 
-O plano é impresso no terminal e salvo em `planos/<slug-da-prova>.json` (ex.: `planos/maratona_de_sp.json`). O arquivo JSON inclui um bloco `metadata` com nome, distância e número de semanas da prova.
-
----
-
-## Relatórios PDF
-
-```bash
-python relatorio.py plano    # relatório do plano de treino (lê planos/*.json mais recente)
-python relatorio.py treinos  # análise de corridas (lê dados/*.json mais recente)
-
-# Arquivo específico:
-python relatorio.py plano   planos/maratona_de_sp.json
-python relatorio.py treinos dados/garmin_2026-06-01_2026-07-23.json
-```
-
-Os PDFs são salvos em `planos/` com timestamp no nome. O subtítulo do relatório de plano é preenchido automaticamente a partir da metadata do JSON (nome e distância da prova). O relatório de treinos aceita tanto o formato do `baixar_treinos.py` (lista de corridas) quanto o do `baixar_tudo.py` (dict com corridas e dados diários).
+O plano é salvo em `planos/<slug-da-prova>.json` com metadados completos (nome, distância, semanas, datas). Cada semana inclui fase do plano, long run, foco da semana e período de datas.
 
 ---
 
@@ -183,6 +177,54 @@ Distribuição semanal: Terça (base), Quinta (tempo), Sábado (leve), Domingo (
 
 Progressão de volume: +10% por semana, com semana de recuperação (−20%) a cada 4ª semana.
 
+Fases do plano geradas automaticamente conforme o número de semanas:
+
+| Fase | % do plano | Foco |
+|------|-----------|------|
+| BASE | 30% | Adaptação, cadência, volume crescente |
+| DESENVOLVIMENTO | 30% | Introdução do tempo run, long runs mais longos |
+| PICO | 22% | Volume máximo, simulação de ritmo de prova |
+| POLIMENTO | 18% | Taper progressivo, descanso final |
+
+---
+
+## Relatórios HTML/PDF
+
+```bash
+# Gera HTML + PDF (padrão)
+python relatorio_html.py plano             # lê planos/*.json mais recente
+python relatorio_html.py treinos           # lê dados/*.json mais recente
+
+# Arquivo específico
+python relatorio_html.py plano   planos/maratona_monumental_2026.json
+python relatorio_html.py treinos dados/garmin_2026-06-01_2026-07-23.json
+
+# Apenas HTML (sem conversão para PDF)
+python relatorio_html.py plano --html-only
+```
+
+Os arquivos são salvos em `planos/` com timestamp no nome (`relatorio_plano_YYYYMMDD_HHMM.html/.pdf`).
+
+### Relatório de plano
+
+- Badge da prova com data e contagem regressiva
+- KPIs: semanas de treino, corrida mais longa, pico semanal, pace alvo
+- Barra de fases colorida (BASE → DESENVOLVIMENTO → PICO → POLIMENTO)
+- Gráfico de progressão do long run com pontos coloridos por fase
+- Tabela semana a semana: período, volume, long run, foco e badge de fase/recuperação
+- Cards de referência de ritmos calculados do pace base
+- Regras de ouro do treinamento
+
+### Relatório de análise de treinos
+
+- KPIs: km totais, kcal, FC média atual com delta, VO₂Max
+- Gráfico de distância por sessão (azul = rua, cinza = esteira)
+- Gráfico de FC com linha de tendência
+- Barras de estimativa de tempo por zona de FC
+- Cards de insights automáticos: tendência de FC, cadência, distribuição de zonas
+
+> A conversão para PDF usa playwright/Chromium com `print_background: true`, preservando cores e gráficos. Requer conexão à internet para carregar o Chart.js.
+
 ---
 
 ## Fluxo completo
@@ -192,9 +234,11 @@ Progressão de volume: +10% por semana, com semana de recuperação (−20%) a c
 python baixar_tudo.py --dias 30
 
 # 2. Gerar plano baseado nos dados reais
-python main.py --auto
+python main.py --auto --prova-nome "Maratona Monumental 2026" \
+               --distancia 21 --semanas 17 \
+               --data-inicio 2026-07-28 --data-prova 2026-11-22
 
-# 3. Gerar relatório PDF
-python relatorio.py treinos
-python relatorio.py plano
+# 3. Gerar relatórios HTML + PDF
+python relatorio_html.py treinos
+python relatorio_html.py plano
 ```
