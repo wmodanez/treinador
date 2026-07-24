@@ -101,7 +101,17 @@ def _args() -> argparse.Namespace:
                    help=f"Nome da prova alvo (padrão: \"{PROVA_NOME}\")")
     p.add_argument("--distancia", type=float, default=PROVA_DISTANCIA, metavar="KM",
                    help=f"Distância da prova em km (padrão: {PROVA_DISTANCIA})")
+    p.add_argument("--data-inicio", metavar="YYYY-MM-DD",
+                   help="Início do plano (padrão: próxima segunda-feira)")
+    p.add_argument("--data-prova", metavar="YYYY-MM-DD",
+                   help="Data da prova (para contagem regressiva no relatório)")
     return p.parse_args()
+
+
+def _proxima_segunda() -> date:
+    hoje = date.today()
+    dias = (7 - hoje.weekday()) % 7
+    return hoje + timedelta(days=dias or 7)
 
 
 def main() -> None:
@@ -129,21 +139,32 @@ def main() -> None:
     print(f"Semanas:        {args.semanas}")
     print()
 
+    data_inicio = (
+        date.fromisoformat(args.data_inicio) if args.data_inicio else _proxima_segunda()
+    )
+
     plano = gerar_plano(
         semanas=args.semanas,
         volume_inicial_km=volume,
         pace_base_str=pace,
         prova_nome=prova_nome,
         prova_distancia_km=distancia,
+        data_inicio=data_inicio,
     )
     imprimir_resumo(plano)
 
     slug = re.sub(r"[^a-z0-9]+", "_", prova_nome.lower()).strip("_")
-    caminho_plano = salvar_plano(
-        plano,
-        f"{slug}.json",
-        metadata={"prova_nome": prova_nome, "prova_distancia_km": distancia, "semanas": args.semanas},
-    )
+    metadata = {
+        "prova_nome":        prova_nome,
+        "prova_distancia_km": distancia,
+        "semanas":           args.semanas,
+        "pace_base":         pace,
+        "data_inicio":       str(data_inicio),
+    }
+    if args.data_prova:
+        metadata["data_prova"] = args.data_prova
+
+    caminho_plano = salvar_plano(plano, f"{slug}.json", metadata=metadata)
     print(f"\nPlano salvo em: {caminho_plano}")
 
 
